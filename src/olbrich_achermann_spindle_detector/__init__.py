@@ -1,30 +1,34 @@
 import mne
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 from tqdm import tqdm
 
-from utils import save_events_as_scoring
+from .utils import save_events_as_scoring
+from .validate import validate
 
 
-def calculate_nrem_spindle_rate(events, hypnogram, epoch_duration=5.0):
-    """
-    Calculate spindle rate per minute of NREM sleep.
-    """
-
-    # NREM = S1, S2, S3, S4
+def calculate_nrem_spindle_rate(
+    events,
+    hypnogram,
+    epoch_duration=5.0,
+    min_freq=11.5,
+    max_freq=16.0,
+):
     nrem_codes = {0, 1, 2, 3}
 
-    # Total NREM duration
     nrem_epochs = np.isin(hypnogram, list(nrem_codes))
     nrem_seconds = np.sum(nrem_epochs) * epoch_duration
 
-    # Count events whose t1 falls in an NREM epoch
     nrem_events = 0
 
     for event in events:
+        frequency = event["frequency"]
+
+        if not (min_freq <= frequency <= max_freq):
+            continue
 
         t1 = event["t1"]
-
         epoch = int(t1 // epoch_duration)
 
         if epoch >= len(hypnogram):
@@ -75,106 +79,6 @@ def load_hypnogram(filename):
 
     return np.array(stages)
 
-
-def find_events(fine_results, r_a, r_b, td=1.0):
-    """
-    Find oscillatory events from the fine-scan results.
-
-    Parameters
-    ----------
-    fine_results : list
-        Results from the fine scan.
-
-    r_a : float
-        Lower threshold for candidate events.
-
-    r_b : float
-        Higher threshold defining the oscillatory event.
-
-    td : float
-        Segment length. The paper uses td = 1 s.
-
-    Returns
-    -------
-    events : list
-        Detected events with t1, t2, and duration.
-    """
-
-    events = []
-
-    for k in range(len(fine_results[0]["oscillators"])):
-
-        in_candidate = False
-        event_started = False
-
-        t1 = None
-        last_below_rb = None
-
-        for result in fine_results:
-
-            time = result["time"]
-            oscillators = result["oscillators"]
-
-            if k >= len(oscillators):
-                continue
-
-            r = oscillators[k]["r"]
-
-            # --------------------------------------------------
-            # Candidate event: rk exceeds ra
-            # --------------------------------------------------
-
-            if not in_candidate:
-
-                if r > r_a:
-                    in_candidate = True
-                else:
-                    continue
-
-            # --------------------------------------------------
-            # Event starts when rk crosses rb upwards
-            # --------------------------------------------------
-
-            if not event_started:
-
-                if r > r_b:
-                    t1 = time
-                    event_started = True
-
-                continue
-
-            # --------------------------------------------------
-            # Event is active
-            # --------------------------------------------------
-
-            if r < r_b:
-                last_below_rb = time
-
-            # --------------------------------------------------
-            # Candidate event ends when rk falls below ra
-            # --------------------------------------------------
-
-            if r < r_a:
-
-                if last_below_rb is not None:
-
-                    t2 = last_below_rb
-
-                    duration = t2 - t1 + td
-
-                    events.append(
-                        {
-                            "oscillator": k,
-                            "t1": t1,
-                            "t2": t2,
-                            "duration": duration,
-                        }
-                    )
-
-                break
-
-    return events
-
 def get_oscillators(segment, p, fs):
     """
     Fit AR(p) to a 1-second segment and return
@@ -215,7 +119,7 @@ def get_oscillators(segment, p, fs):
 def main() -> None:
     print("Hello from olbrich-achermann-spindle-detector!")
     # lower threshold
-    r_a = 0.9
+    r_a = 0.90
     # higher threshold
     r_b = 0.95
 
@@ -235,40 +139,72 @@ def main() -> None:
     print("Signal length:", len(signal))
     print("Duration:", len(signal) / fs, "seconds")
 
-    candidates = []
-    for start in range(0, len(signal) - fs + 1, fs):
-        segment = signal[start : start + fs]
-        oscillators = get_oscillators(segment, p=8, fs=fs)
-
-        for osc in oscillators:
-            if osc["r"] > r_a:
-                # print(f"\nOscillator {i} in segment {start // fs + 1}")
-                # print(f"  r         = {osc['r']:.6f}")
-                # print(f"  frequency = {osc['frequency']:.3f} Hz")
-                candidate_start = max(0, start - fs)
-                if candidate_start not in candidates:
-                    candidates.append(candidate_start)
-
-    print(len(candidates))
-
     all_events = []
-    for candidate in tqdm(candidates, desc="Candidates"):
-        fine_times = np.arange(
-            candidate / fs,
-            len(signal) / fs - 1,
-            1 / 16,
+    pole_trace = []
+    start = 0
+
+    pbar = tqdm(total=len(signal) / fs)
+    while start < len(signal) - fs:
+
+        # -----------------------------
+        # Coarse scan (1 s step)
+        # -----------------------------
+
+        segment = signal[start:start + fs]
+
+        oscillators = get_oscillators(
+            segment,
+            p=8,
+            fs=fs
         )
 
-        fine_results = []
+        candidate_found = any(
+            osc["r"] > r_a
+            for osc in oscillators
+        )
 
-        for time in fine_times:
 
-            start = round(time * fs)
+        if not candidate_found:
 
-            segment = signal[start : start + fs]
+            start += fs
+            pbar.update(1)
+            continue
+
+
+        # -----------------------------
+        # Fine scan (1/16 s step)
+        # -----------------------------
+
+        fine_start = max(0, start - fs)
+
+        event_started = False
+
+        active_frequency = None
+
+        t1 = None
+        t2 = None
+
+        previous_r = None
+        last_rb_crossing = None
+
+        max_r = -np.inf
+        peak_time = None
+        peak_frequency = None
+
+
+        for time in np.arange(
+            fine_start / fs,
+            len(signal) / fs - 1,
+            1 / 16,
+        ):
+
+            idx = round(time * fs)
+
+            segment = signal[idx:idx + fs]
 
             if len(segment) < fs:
                 break
+
 
             oscillators = get_oscillators(
                 segment,
@@ -276,26 +212,147 @@ def main() -> None:
                 fs=fs,
             )
 
-            fine_results.append(
-                {
-                    "start_sample": start,
-                    "time": time,
-                    "oscillators": oscillators,
-                }
-            )
+
+            # save pole information
+            for rank, osc in enumerate(oscillators):
+
+                pole_trace.append(
+                    {
+                        "time": time,
+                        "rank": rank,
+                        "r": osc["r"],
+                        "frequency": osc["frequency"],
+                    }
+                )
 
 
-        events = find_events(fine_results, r_a, r_b)
+            # -----------------------------
+            # Select oscillator
+            # -----------------------------
 
-        for event in events:
-            all_events.append(event)
-            # print(
-            #     f"oscillator {event['oscillator']}: "
-            #     f"t1={event['t1']:.4f}, "
-            #     f"t2={event['t2']:.4f}, "
-            #     f"duration={event['duration']:.2f}"
-            # )
-            #
+            if not event_started:
+
+                # strongest pole starts event
+                osc = max(
+                    oscillators,
+                    key=lambda x: x["r"]
+                )
+
+            else:
+
+                # follow same oscillator
+                osc = min(
+                    oscillators,
+                    key=lambda x:
+                        abs(
+                            x["frequency"]
+                            -
+                            active_frequency
+                        )
+                )
+
+
+            active_frequency = osc["frequency"]
+
+            r = osc["r"]
+            f = osc["frequency"]
+
+
+            # -----------------------------
+            # Event start
+            # -----------------------------
+
+            if not event_started:
+
+                if previous_r is not None:
+
+                    upward_cross = (
+                        previous_r <= r_b
+                        and r > r_b
+                    )
+
+                else:
+                    upward_cross = False
+
+
+                if upward_cross:
+
+                    event_started = True
+
+                    t1 = time
+
+                    max_r = r
+                    peak_time = time
+                    peak_frequency = f
+
+
+                previous_r = r
+                continue
+
+
+            # -----------------------------
+            # Event ongoing
+            # -----------------------------
+
+            if r > max_r:
+
+                max_r = r
+                peak_time = time
+                peak_frequency = f
+
+
+            # downward crossing of rb
+            if (
+                previous_r is not None
+                and previous_r >= r_b
+                and r < r_b
+            ):
+
+                last_rb_crossing = time
+
+
+            # final event end
+            if r < r_a:
+
+                t2 = last_rb_crossing
+
+                if t2 is not None:
+
+                    all_events.append(
+                        {
+                            "t1": t1,
+                            "t2": t2,
+
+                            "time": peak_time,
+                            "frequency": peak_frequency,
+
+                            "r": max_r,
+
+                            "duration": t2 - t1 + 1.0,
+                        }
+                    )
+
+                break
+
+
+            previous_r = r
+
+
+        # -----------------------------
+        # Move coarse scan forward
+        # -----------------------------
+
+        if event_started:
+
+            # jump past the complete detected event
+            start = int((time + 1.0) * fs)
+
+        else:
+
+            start += fs
+
+
+        pbar.update(1)
 
     nrem_rate = calculate_nrem_spindle_rate(
         all_events,
@@ -312,4 +369,139 @@ def main() -> None:
         f"{nrem_rate:.3f} spindles/min"
     )
 
+    freq_events = [
+        e for e in all_events
+        if 11.5 <= e["frequency"] <= 16.0
+    ]
 
+    gaps = []
+    for i in range(1, len(freq_events)):
+        previous = freq_events[i - 1]
+        current = freq_events[i]
+
+        previous_end = previous["t1"] + previous["duration"]
+        gap = current["t1"] - previous_end
+
+        if gap >= 0:
+            gaps.append(gap)
+
+    gaps = np.array(gaps)
+
+    print("Number of gaps:", len(gaps))
+
+    for threshold in [0.05, 0.10, 0.20, 0.25, 0.50, 0.75, 1.0]:
+        print(
+            f"gap <= {threshold:.2f}s: "
+            f"{np.sum(gaps <= threshold)}"
+        )
+
+
+    nrem_events = [
+        e for e in freq_events
+        if hypnogram[int(e["t1"] // 5.0)] in {0, 1, 2, 3}
+    ]
+
+    nrem_minutes = (
+        np.sum(np.isin(hypnogram, [0, 1, 2, 3])) * 5.0 / 60.0
+    )
+
+    print("Total detected events:", len(all_events))
+    print("11.5–16 Hz events:", len(freq_events))
+    print("11.5–16 Hz + NREM events:", len(nrem_events))
+    print("NREM minutes:", nrem_minutes)
+    print("Rate:", len(nrem_events) / nrem_minutes)
+
+    validate(nrem_events, "/Users/a2m/Code/olbrich-achermann-spindle-detector/DatabaseSpindles/Visual_scoring1_excerpt1.txt", "/Users/a2m/Code/olbrich-achermann-spindle-detector/DatabaseSpindles/Visual_scoring2_excerpt1.txt")
+
+
+    sigma = pd.DataFrame(freq_events)
+
+    print("\n=== SIGMA EVENTS ===")
+
+    print("\nDuration:")
+    print(sigma["duration"].describe())
+
+    print("\nMax R:")
+    print(sigma["r"].describe())
+
+    print("\nPeak frequency:")
+    print(sigma["frequency"].describe())
+
+
+    print("\n=== DURATION BINS ===")
+
+    print(
+        pd.cut(
+            sigma["duration"],
+            bins=[0, 0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0],
+            include_lowest=True
+        ).value_counts().sort_index()
+    )
+
+    print("\n=== RMAX BINS ===")
+
+    print(
+        pd.cut(
+            sigma["r"],
+            bins=[0.95, 0.96, 0.97, 0.98, 0.99, 1.0],
+            include_lowest=True
+        ).value_counts().sort_index()
+    )
+
+    sigma_events = sorted(freq_events, key=lambda e: e["time"])
+
+    intervals = np.array([
+        sigma_events[i]["time"] -
+        sigma_events[i - 1]["time"]
+        for i in range(1, len(sigma_events))
+    ])
+
+    print("\n=== SIGMA INTER-EVENT INTERVALS ===")
+    print("N:", len(intervals))
+    print(pd.Series(intervals).describe())
+
+    for threshold in [0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0]:
+        print(
+            f"interval <= {threshold:.2f}s: "
+            f"{np.sum(intervals <= threshold)}"
+        )
+
+    sigma_events = sorted(freq_events, key=lambda e: e["t1"])
+
+    overlaps = []
+
+    for i in range(1, len(sigma_events)):
+        prev = sigma_events[i - 1]
+        curr = sigma_events[i]
+
+        prev_end = prev["t2"]
+
+        overlap = prev_end - curr["t1"]
+
+        if overlap > 0:
+            overlaps.append(overlap)
+
+    print("\n=== OVERLAPPING SIGMA EVENTS ===")
+    print("Number:", len(overlaps))
+    print(pd.Series(overlaps).describe())
+
+    for i in range(1, 10):
+        prev = sigma_events[i - 1]
+        curr = sigma_events[i]
+
+        overlap = prev["t2"] - curr["t1"]
+
+        if overlap > 0:
+            print(
+                f"prev: {prev['t1']:.4f}-{prev['t2']:.4f} "
+                f"f={prev['frequency']:.3f} "
+                f"r={prev['r']:.4f}\n"
+                f"curr: {curr['t1']:.4f}-{curr['t2']:.4f} "
+                f"f={curr['frequency']:.3f} "
+                f"r={curr['r']:.4f}\n"
+                f"overlap={overlap:.4f}s\n"
+            )
+
+    pole_df = pd.DataFrame(pole_trace)
+    print(pole_df.head(20))
+    print(pole_df.describe())

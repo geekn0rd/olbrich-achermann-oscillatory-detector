@@ -39,12 +39,10 @@ def save_events_as_scoring(
 
             t1 = event["t1"]
             duration = event["duration"]
-            oscillator = event["oscillator"]
 
             f.write(
                 f"{t1:10.4f}\t"
-                f"{duration:10.4f}\t"
-                f"{oscillator}\n"
+                f"{duration:10.4f}\n"
             )
 
     print(
