@@ -143,7 +143,8 @@ def main() -> None:
     pole_trace = []
     start = 0
 
-    pbar = tqdm(total=len(signal) / fs)
+    pbar = tqdm(total=len(signal) / fs, desc="Scanning")
+    last_progress = 0
     while start < len(signal) - fs:
 
         # -----------------------------
@@ -352,8 +353,11 @@ def main() -> None:
             start += fs
 
 
-        pbar.update(1)
+        current_progress = start / fs
+        pbar.update(current_progress - last_progress)
+        last_progress = current_progress
 
+    pbar.close()
     nrem_rate = calculate_nrem_spindle_rate(
         all_events,
         hypnogram,
