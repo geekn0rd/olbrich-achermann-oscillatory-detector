@@ -1,7 +1,19 @@
+"""Autoregressive oscillator-based spindle detection.
+
+The implementation follows the paper's two-stage scan: a coarse one-second
+scan identifies candidate regions, then a fine scan tracks the selected pole
+until the event termination criterion is met.
+"""
+
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from tqdm import tqdm
+
+AR_ORDER = 8
+FINE_SCAN_STEP_SECONDS = 1 / 16
 
 
 def get_oscillators(segment, p, fs):
@@ -42,6 +54,7 @@ def get_oscillators(segment, p, fs):
 
 
 def detect_events(signal, fs, r_a, r_b):
+    """Detect spindle events using coarse scanning and fine pole tracking."""
     print("Signal length:", len(signal))
     print("Duration:", len(signal) / fs, "seconds")
 
@@ -57,26 +70,17 @@ def detect_events(signal, fs, r_a, r_b):
         # Coarse scan (1 s step)
         # -----------------------------
 
-        segment = signal[start:start + fs]
+        segment = signal[start : start + fs]
 
-        oscillators = get_oscillators(
-            segment,
-            p=8,
-            fs=fs
-        )
+        oscillators = get_oscillators(segment, p=AR_ORDER, fs=fs)
 
-        candidate_found = any(
-            osc["r"] > r_a
-            for osc in oscillators
-        )
-
+        candidate_found = any(osc["r"] > r_a for osc in oscillators)
 
         if not candidate_found:
 
             start += fs
             pbar.update(1)
             continue
-
 
         # -----------------------------
         # Fine scan (1/16 s step)
@@ -97,28 +101,26 @@ def detect_events(signal, fs, r_a, r_b):
         max_r = -np.inf
         peak_time = None
         peak_frequency = None
-
+        time = fine_start / fs
 
         for time in np.arange(
             fine_start / fs,
             len(signal) / fs - 1,
-            1 / 16,
+            FINE_SCAN_STEP_SECONDS,
         ):
 
             idx = round(time * fs)
 
-            segment = signal[idx:idx + fs]
+            segment = signal[idx : idx + fs]
 
             if len(segment) < fs:
                 break
 
-
             oscillators = get_oscillators(
                 segment,
-                p=8,
+                p=AR_ORDER,
                 fs=fs,
             )
-
 
             # save pole information
             for rank, osc in enumerate(oscillators):
@@ -132,7 +134,6 @@ def detect_events(signal, fs, r_a, r_b):
                     }
                 )
 
-
             # -----------------------------
             # Select oscillator
             # -----------------------------
@@ -140,30 +141,20 @@ def detect_events(signal, fs, r_a, r_b):
             if not event_started:
 
                 # strongest pole starts event
-                osc = max(
-                    oscillators,
-                    key=lambda x: x["r"]
-                )
+                osc = max(oscillators, key=lambda x: x["r"])
 
             else:
 
                 # follow same oscillator
                 osc = min(
                     oscillators,
-                    key=lambda x:
-                        abs(
-                            x["frequency"]
-                            -
-                            active_frequency
-                        )
+                    key=lambda x: abs(x["frequency"] - cast(float, active_frequency)),
                 )
-
 
             active_frequency = osc["frequency"]
 
             r = osc["r"]
             f = osc["frequency"]
-
 
             # -----------------------------
             # Event start
@@ -173,14 +164,10 @@ def detect_events(signal, fs, r_a, r_b):
 
                 if previous_r is not None:
 
-                    upward_cross = (
-                        previous_r <= r_b
-                        and r > r_b
-                    )
+                    upward_cross = previous_r <= r_b and r > r_b
 
                 else:
                     upward_cross = False
-
 
                 if upward_cross:
 
@@ -192,10 +179,8 @@ def detect_events(signal, fs, r_a, r_b):
                     peak_time = time
                     peak_frequency = f
 
-
                 previous_r = r
                 continue
-
 
             # -----------------------------
             # Event ongoing
@@ -207,16 +192,10 @@ def detect_events(signal, fs, r_a, r_b):
                 peak_time = time
                 peak_frequency = f
 
-
             # downward crossing of rb
-            if (
-                previous_r is not None
-                and previous_r >= r_b
-                and r < r_b
-            ):
+            if previous_r is not None and previous_r >= r_b and r < r_b:
 
                 last_rb_crossing = time
-
 
             # final event end
             if r < r_a:
@@ -229,21 +208,16 @@ def detect_events(signal, fs, r_a, r_b):
                         {
                             "t1": t1,
                             "t2": t2,
-
                             "time": peak_time,
                             "frequency": peak_frequency,
-
                             "r": max_r,
-
-                            "duration": t2 - t1 + 1.0,
+                            "duration": cast(float, t2) - cast(float, t1) + 1.0,
                         }
                     )
 
                 break
 
-
             previous_r = r
-
 
         # -----------------------------
         # Move coarse scan forward
@@ -252,12 +226,11 @@ def detect_events(signal, fs, r_a, r_b):
         if event_started:
 
             # jump past the complete detected event
-            start = int((time + 1.0) * fs)
+            start = int((cast(float, time) + 1.0) * fs)
 
         else:
 
             start += fs
-
 
         current_progress = start / fs
         pbar.update(current_progress - last_progress)
@@ -269,4 +242,3 @@ def detect_events(signal, fs, r_a, r_b):
     print(pole_df.describe())
 
     return all_events
-

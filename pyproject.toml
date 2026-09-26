@@ -1,20 +1,23 @@
 [project]
 name = "olbrich-achermann-spindle-detector"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automatic sleep-spindle detection and DREAMS annotation validation"
 readme = "README.md"
 authors = [
-    { name = "Amir-Ali Motaghedy", email = "70889826+geekn0rd@users.noreply.github.com" }
+    { name = "Amir-Ali Motaghedy", email = "70889826+geekn0rd@users.noreply.github.com" },
 ]
 requires-python = ">=3.12"
 dependencies = [
     "mne>=1.13.2",
+    "numpy>=2.0.0",
+    "pandas>=2.0.0",
+    "scipy>=1.14.0",
     "statsmodels>=0.15.0",
     "tqdm>=4.70.1",
 ]
 
 [project.scripts]
-olbrich-achermann-spindle-detector = "olbrich_achermann_spindle_detector:main"
+olbrich-achermann-spindle-detector = "olbrich_achermann_spindle_detector.batch:main"
 
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13.0"]

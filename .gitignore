@@ -1,15 +1,18 @@
 # Python-generated files
 __pycache__/
-*.py[oc]
+*.py[cod]
+*.egg-info/
+
+# Build and packaging artifacts
 build/
 dist/
 wheels/
-*.egg-info
 
-DatabaseSpindles
-
-
-# Virtual environments
-.venv
+# Local environments and editor metadata
+.venv/
 .DS_Store
-*.txt
+
+# Local research data and generated outputs
+DatabaseSpindles/
+results/
+algorithm_scoring_excerpt*.txt
