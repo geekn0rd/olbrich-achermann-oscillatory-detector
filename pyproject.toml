@@ -1,0 +1,21 @@
+[project]
+name = "olbrich-achermann-spindle-detector"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Amir-Ali Motaghedy", email = "70889826+geekn0rd@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "mne>=1.13.2",
+    "statsmodels>=0.15.0",
+    "tqdm>=4.70.1",
+]
+
+[project.scripts]
+olbrich-achermann-spindle-detector = "olbrich_achermann_spindle_detector:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
