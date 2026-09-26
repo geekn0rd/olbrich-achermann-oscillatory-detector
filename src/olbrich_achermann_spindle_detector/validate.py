@@ -6,12 +6,10 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
-def load_expert_events(filename, duration=1.0):
+def load_expert_events(filename):
     """
-    Load DREAMS expert spindle annotations.
-
-    Each annotation is interpreted as a spindle start time.
-    DREAMS expert spindles are represented as 1-second events.
+    DREAMS expert spindle annotations contain
+    start time and spindle duration.
     """
 
     events = []
@@ -34,6 +32,8 @@ def load_expert_events(filename, duration=1.0):
                 continue
 
             start = float(numbers[0])
+            duration = float(numbers[1])
+
             end = start + duration
 
             events.append({
