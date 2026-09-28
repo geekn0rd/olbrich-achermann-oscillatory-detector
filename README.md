@@ -6,7 +6,11 @@ A Python implementation of the autoregressive pole-based oscillatory-event detec
 
 Three-second DREAMS excerpt showing the EEG, tracked AR pole radii, and pole frequencies. Dotted vertical lines indicate the detected event boundaries; pole colors are consistent between the radius and frequency panels.
 
-![Real EEG example showing the signal, tracked pole radii, and frequencies](docs/images/excerpt6-detection-example.png)
+<p align="center">
+  <img src="docs/images/excerpt6-detection-example.png"
+       alt="Real EEG example showing the signal, tracked pole radii, and frequencies"
+       width="700">
+</p>
 
 > **Paper:** E. Olbrich and P. Achermann, “Analysis of oscillatory patterns in the human sleep EEG using a novel detection algorithm,” *Journal of Sleep Research*, 14(4), 337–346, 2005. [doi:10.1111/j.1365-2869.2005.00475.x](https://doi.org/10.1111/j.1365-2869.2005.00475.x)
 
