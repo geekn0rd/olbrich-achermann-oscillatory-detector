@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from olbrich_achermann_spindle_detector.detector import (
+from detector import (
     AR_ORDER,
     FINE_SCAN_STEP_SECONDS,
     get_oscillators,
