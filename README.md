@@ -72,8 +72,9 @@ The self-contained demo generates a three-second signal with a synthetic
 spindle and plots three aligned panels: the signal, AR pole radii with the
 paper's thresholds, and estimated pole frequencies. Pole estimates are matched
 between adjacent windows by nearest-frequency assignment; each track uses the
-same color in the radius and frequency panels, with markers connected over time. It does not require DREAMS
-data. Install the optional plotting dependency and run it:
+same color in the radius and frequency panels, with markers connected over
+time. It does not require DREAMS data. Install the optional plotting dependency
+and run it:
 
 ```bash
 uv sync --extra plots
@@ -83,15 +84,26 @@ uv run python examples/synthetic_demo.py
 This synthetic illustration is not a reproduction of the paper's EEG figure or
 a scientific validation result.
 
-To plot a single event from the local DREAMS excerpt 6 recording, with detector
-boundaries marked by dotted vertical lines:
+## Real EEG example
+
+The figure below shows a three-second excerpt from DREAMS excerpt 6. It displays
+the EEG, tracked AR pole radii, and pole frequencies. The dotted vertical lines
+mark the detector's event boundaries; the radius panel includes the detector
+thresholds. Pole colors are consistent between the radius and frequency panels.
+
+<!-- Replace this image path with the uploaded figure location. -->
+![Real EEG example showing the signal, tracked pole radii, and frequencies](docs/images/excerpt6-detection-example.png)
+
+To generate the figure from a local DREAMS installation:
 
 ```bash
-uv run python examples/plot_real_event.py
+uv run --extra plots python examples/plot_real_event.py
 ```
 
-The real-data figure is written to `results/excerpt6_matched_event.png`. Check
-the DREAMS license before redistributing plots derived from its recordings.
+The script writes `results/excerpt6_matched_event.png`. Add the image to
+`docs/images/excerpt6-detection-example.png` or update the Markdown image path
+above to match where you upload it. Check the DREAMS license before publishing
+a plot derived from its recordings.
 
 ## Usage
 
