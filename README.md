@@ -2,6 +2,12 @@
 
 A Python implementation of the autoregressive pole-based oscillatory-event detector described by Olbrich and Achermann (2005). The project applies the method to DREAMS sleep-EEG excerpts, identifies candidate spindle events, calculates NREM spindle rates, and can compare detections with expert annotations.
 
+### Real EEG detection example
+
+Three-second DREAMS excerpt showing the EEG, tracked AR pole radii, and pole frequencies. Dotted vertical lines indicate the detected event boundaries; pole colors are consistent between the radius and frequency panels.
+
+![Real EEG example showing the signal, tracked pole radii, and frequencies](docs/images/excerpt6-detection-example.png)
+
 > **Paper:** E. Olbrich and P. Achermann, “Analysis of oscillatory patterns in the human sleep EEG using a novel detection algorithm,” *Journal of Sleep Research*, 14(4), 337–346, 2005. [doi:10.1111/j.1365-2869.2005.00475.x](https://doi.org/10.1111/j.1365-2869.2005.00475.x)
 
 > **Data notice:** DREAMS recordings and annotations are not included in this repository. Obtain the dataset separately and place the permitted files in `DatabaseSpindles/`, respecting its license.
@@ -86,24 +92,15 @@ a scientific validation result.
 
 ## Real EEG example
 
-The figure below shows a three-second excerpt from DREAMS excerpt 6. It displays
-the EEG, tracked AR pole radii, and pole frequencies. The dotted vertical lines
-mark the detector's event boundaries; the radius panel includes the detector
-thresholds. Pole colors are consistent between the radius and frequency panels.
-
-<!-- Replace this image path with the uploaded figure location. -->
-![Real EEG example showing the signal, tracked pole radii, and frequencies](docs/images/excerpt6-detection-example.png)
-
-To generate the figure from a local DREAMS installation:
+The plot uses a three-second window from DREAMS excerpt 6. To regenerate it
+from a local DREAMS installation:
 
 ```bash
 uv run --extra plots python examples/plot_real_event.py
 ```
 
-The script writes `results/excerpt6_matched_event.png`. Add the image to
-`docs/images/excerpt6-detection-example.png` or update the Markdown image path
-above to match where you upload it. Check the DREAMS license before publishing
-a plot derived from its recordings.
+The script writes `results/excerpt6_matched_event.png`. Check the DREAMS
+license before publishing or redistributing plots derived from its recordings.
 
 ## Usage
 
