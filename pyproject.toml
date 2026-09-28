@@ -16,6 +16,9 @@ dependencies = [
     "tqdm>=4.70.1",
 ]
 
+[project.optional-dependencies]
+plots = ["matplotlib>=3.8"]
+
 [project.scripts]
 olbrich-achermann-spindle-detector = "olbrich_achermann_spindle_detector.batch:main"
 

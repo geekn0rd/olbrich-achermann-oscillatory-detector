@@ -726,8 +726,14 @@ dependencies = [
     { name = "tqdm" },
 ]
 
+[package.optional-dependencies]
+plots = [
+    { name = "matplotlib" },
+]
+
 [package.metadata]
 requires-dist = [
+    { name = "matplotlib", marker = "extra == 'plots'", specifier = ">=3.8" },
     { name = "mne", specifier = ">=1.13.2" },
     { name = "numpy", specifier = ">=2.0.0" },
     { name = "pandas", specifier = ">=2.0.0" },
@@ -735,6 +741,7 @@ requires-dist = [
     { name = "statsmodels", specifier = ">=0.15.0" },
     { name = "tqdm", specifier = ">=4.70.1" },
 ]
+provides-extras = ["plots"]
 
 [[package]]
 name = "packaging"

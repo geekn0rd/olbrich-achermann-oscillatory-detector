@@ -66,6 +66,33 @@ Visual_scoring2_excerpt<N>.txt
 
 The hypnogram and visual-scoring files are optional for detection, but they are needed for NREM-rate calculation and expert validation. The available DREAMS channel names may differ from the original paper's `C3-A2` derivation; the batch runner currently looks for `C3-A1` and then `CZ-A1`.
 
+## Synthetic example
+
+The self-contained demo generates a three-second signal with a synthetic
+spindle and plots three aligned panels: the signal, AR pole radii with the
+paper's thresholds, and estimated pole frequencies. Pole estimates are matched
+between adjacent windows by nearest-frequency assignment; each track uses the
+same color in the radius and frequency panels, with markers connected over time. It does not require DREAMS
+data. Install the optional plotting dependency and run it:
+
+```bash
+uv sync --extra plots
+uv run python examples/synthetic_demo.py
+```
+
+This synthetic illustration is not a reproduction of the paper's EEG figure or
+a scientific validation result.
+
+To plot a single event from the local DREAMS excerpt 6 recording, with detector
+boundaries marked by dotted vertical lines:
+
+```bash
+uv run python examples/plot_real_event.py
+```
+
+The real-data figure is written to `results/excerpt6_matched_event.png`. Check
+the DREAMS license before redistributing plots derived from its recordings.
+
 ## Usage
 
 Process all available excerpts using the default multi-mode detector:
@@ -128,7 +155,10 @@ src/olbrich_achermann_spindle_detector/
 ├── detector.py   # AR pole estimation and oscillatory-event detection
 ├── utils.py      # DREAMS I/O and NREM-rate helpers
 └── validate.py   # Expert annotation matching and metrics
-see.py            # Scoring-file inspection helper
+examples/
+├── synthetic_demo.py     # Synthetic three-panel pole visualization
+└── plot_real_event.py    # Plot one event from a local DREAMS EDF
+see.py              # Scoring-file inspection helper
 ```
 
 ## Reproducibility and scope
