@@ -86,18 +86,26 @@ The batch runner writes detector scoring files to `results/` and saves the combi
 results/summary.csv
 ```
 
-The detector can also be called directly from Python:
+The detector can also be configured and reused as a Python object:
 
 ```python
-from olbrich_achermann_spindle_detector import detect_events
+from olbrich_achermann_spindle_detector import SpindleDetector
 
-events = detect_events(
-    signal,
-    fs,
+detector = SpindleDetector(
+    fs=128,
     r_a=0.90,
     r_b=0.95,
     pole_mode="all",
 )
+events = detector.detect(signal)
+```
+
+For existing code, the functional interface remains available:
+
+```python
+from olbrich_achermann_spindle_detector import detect_events
+
+events = detect_events(signal, fs=128, r_a=0.90, r_b=0.95, pole_mode="all")
 ```
 
 To inspect an algorithm scoring file:

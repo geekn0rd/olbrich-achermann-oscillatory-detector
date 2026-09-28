@@ -125,18 +125,8 @@ def _match_oscillators(tracks, oscillators):
     return matches
 
 
-def detect_events(
-    signal,
-    fs,
-    r_a,
-    r_b,
-    pole_mode: Literal["max", "all"] = "all",
-):
-    """Detect events while tracking the strongest pole or all poles.
-
-    ``pole_mode="max"`` keeps only the pole with the largest radius in each
-    analysis window. ``pole_mode="all"`` tracks every positive-frequency pole.
-    """
+def _detect_events(signal, fs, r_a, r_b, pole_mode):
+    """Run the two-stage scan using the provided detector configuration."""
     if pole_mode not in {"max", "all"}:
         raise ValueError("pole_mode must be either 'max' or 'all'")
 
@@ -257,3 +247,55 @@ def detect_events(
         print(pole_df.describe())
 
     return all_events
+
+
+class SpindleDetector:
+    """Configurable detector for autoregressive oscillatory events.
+
+    Args:
+        fs: Signal sampling rate in Hz.
+        r_a: Lower pole-radius threshold.
+        r_b: Upper pole-radius threshold, which must exceed ``r_a``.
+        pole_mode: ``"all"`` tracks all positive-frequency poles;
+            ``"max"`` tracks only the strongest pole per window.
+    """
+
+    def __init__(
+        self,
+        fs: int,
+        r_a: float = 0.90,
+        r_b: float = 0.95,
+        pole_mode: Literal["max", "all"] = "all",
+    ) -> None:
+        if fs <= 0:
+            raise ValueError("fs must be a positive sampling rate")
+        if not r_a < r_b:
+            raise ValueError("r_a must be less than r_b")
+        if pole_mode not in {"max", "all"}:
+            raise ValueError("pole_mode must be either 'max' or 'all'")
+
+        self.fs = fs
+        self.r_a = r_a
+        self.r_b = r_b
+        self.pole_mode = pole_mode
+
+    def detect(self, signal):
+        """Detect oscillatory events in a one-dimensional EEG signal."""
+        return _detect_events(
+            signal,
+            self.fs,
+            self.r_a,
+            self.r_b,
+            self.pole_mode,
+        )
+
+
+def detect_events(
+    signal,
+    fs,
+    r_a,
+    r_b,
+    pole_mode: Literal["max", "all"] = "all",
+):
+    """Backward-compatible functional interface for :class:`SpindleDetector`."""
+    return SpindleDetector(fs, r_a, r_b, pole_mode).detect(signal)
