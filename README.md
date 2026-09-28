@@ -103,8 +103,7 @@ from a local DREAMS installation:
 uv run --extra plots python examples/plot_real_event.py
 ```
 
-The script writes `results/excerpt6_matched_event.png`. Check the DREAMS
-license before publishing or redistributing plots derived from its recordings.
+The script writes `results/excerpt6_matched_event.png`.
 
 ## Usage
 
