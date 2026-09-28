@@ -30,7 +30,15 @@ The batch runner discovers files named `excerpt<N>.edf` in `DatabaseSpindles/` a
 uv run olbrich-achermann-spindle-detector
 ```
 
-For each excerpt it may write an algorithm scoring file to `results/`. After the batch completes, the combined metrics are written to `results/summary.csv`.
+By default, the detector follows all positive-frequency poles. To follow only
+one pole per analysis window—the pole with the largest radius—run:
+
+```bash
+uv run olbrich-achermann-spindle-detector --pole-mode max
+```
+
+The same option is available in Python as `detect_events(..., pole_mode="all")`
+or `detect_events(..., pole_mode="max")`. For each excerpt it may write an algorithm scoring file to `results/`. After the batch completes, the combined metrics are written to `results/summary.csv`.
 
 The repository also contains a small inspection helper for an algorithm scoring file:
 
